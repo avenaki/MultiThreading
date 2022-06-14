@@ -61,38 +61,46 @@ namespace MultiThreading.Task6.Continuation
         static void OptionA()
         {
             Task<int> parentTask = Task.Run(() => Execute("a"));
-            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation());
+            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation(), TaskContinuationOptions.None);
         }
 
         static void OptionB()
         {
             Task<int> parentTask = Task.Run(() => Execute("b"));
-            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation(), TaskContinuationOptions.OnlyOnFaulted);
+            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation(), TaskContinuationOptions.NotOnRanToCompletion);
         }
 
         static void OptionC()
         {
             Task<int> parentTask = Task.Run(() => Execute("c"));
-            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation(), TaskContinuationOptions.ExecuteSynchronously);
+            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation(), TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         static void OptionD()
         {
-            Task<int> parentTask = Task.Run(() => Execute("d"));
-            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation(), TaskContinuationOptions.LongRunning);
+            var tokenSource = new CancellationTokenSource();
+            var token = tokenSource.Token;
+            tokenSource.Cancel();
+            var scheduler = TaskScheduler.Default;
+            Task<int> parentTask = Task.Run(() => Execute("d"), token);
+            Task continuation = parentTask.ContinueWith(x => ExecuteContinuation(), new CancellationToken(),TaskContinuationOptions.OnlyOnCanceled | TaskContinuationOptions.LongRunning, scheduler);
         }
 
         static int Execute(string option)
         {
             Console.WriteLine($"Current thread id: {Thread.CurrentThread.ManagedThreadId}");
+            Console.WriteLine("IsThreadPoolThread: " + Thread.CurrentThread.IsThreadPoolThread);
             switch (option)
             {
+                case "a":
+                    Console.WriteLine("Parent task is going to throw an exception");
+                    throw new Exception("This exception is expected!");
                 case "b":
-                    Console.WriteLine("Paren task is going to throw an exception");
+                    Console.WriteLine("Parent task is going to throw an exception");
                     throw new Exception("This exception is expected!");
 
                 case "c":
-                    Console.WriteLine("Paren task is going to throw an exception");
+                    Console.WriteLine("Parent task is going to throw an exception");
                     throw new Exception("This exception is expected!");
 
                 case "d":
@@ -110,6 +118,7 @@ namespace MultiThreading.Task6.Continuation
         static void ExecuteContinuation()
         {
             Console.WriteLine($"Current thread id: {Thread.CurrentThread.ManagedThreadId}");
+            Console.WriteLine("IsThreadPoolThread: " + Thread.CurrentThread.IsThreadPoolThread);
             Console.WriteLine("Continuation task executed.");
         }
     }
